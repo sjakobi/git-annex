@@ -15,6 +15,7 @@ module Creds (
 	writeCacheCreds,
 	readCacheCreds,
 	removeCreds,
+	includeCredsInfo,
 ) where
 
 import Common.Annex
@@ -23,7 +24,7 @@ import Annex.Perms
 import Utility.FileMode
 import Crypto
 import Types.Remote (RemoteConfig, RemoteConfigKey)
-import Remote.Helper.Encryptable (remoteCipher, remoteCipher', embedCreds, EncryptionIsSetup)
+import Remote.Helper.Encryptable (remoteCipher, remoteCipher', embedCreds, EncryptionIsSetup, extractCipher)
 import Utility.Env (getEnv)
 
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -39,8 +40,10 @@ data CredPairStorage = CredPairStorage
 	}
 
 {- Stores creds in a remote's configuration, if the remote allows
- - that. Otherwise, caches them locally.
- - The creds are found in storage if not provided.
+ - that. Also caches them locally.
+ -
+ - The creds are found from the CredPairStorage storage if not provided,
+ - so may be provided by an environment variable etc.
  -
  - The remote's configuration should have already had a cipher stored in it
  - if that's going to be done, so that the creds can be encrypted using the
@@ -53,7 +56,7 @@ setRemoteCredPair encsetup c storage Nothing =
 setRemoteCredPair _ c storage (Just creds)
 	| embedCreds c = case credPairRemoteKey storage of
 		Nothing -> localcache
-		Just key -> storeconfig key =<< remoteCipher c
+		Just key -> storeconfig key =<< remoteCipher =<< localcache
 	| otherwise = localcache
   where
 	localcache = do
@@ -144,10 +147,16 @@ readCacheCredPair storage = maybe Nothing decodeCredPair
 	<$> readCacheCreds (credPairFile storage)
 
 readCacheCreds :: FilePath -> Annex (Maybe Creds)
-readCacheCreds file = do
+readCacheCreds f = liftIO . catchMaybeIO . readFile =<< cacheCredsFile f
+
+cacheCredsFile :: FilePath -> Annex FilePath
+cacheCredsFile basefile = do
 	d <- fromRepo gitAnnexCredsDir
-	let f = d </> file
-	liftIO $ catchMaybeIO $ readFile f
+	return $ d </> basefile
+
+existsCacheCredPair :: CredPairStorage -> Annex Bool
+existsCacheCredPair storage = 
+	liftIO . doesFileExist =<< cacheCredsFile (credPairFile storage)
 
 encodeCredPair :: CredPair -> Creds
 encodeCredPair (l, p) = unlines [l, p]
@@ -162,3 +171,21 @@ removeCreds file = do
 	d <- fromRepo gitAnnexCredsDir
 	let f = d </> file
 	liftIO $ nukeFile f
+
+includeCredsInfo :: RemoteConfig -> CredPairStorage -> [(String, String)] -> Annex [(String, String)]
+includeCredsInfo c storage info = do
+	v <- liftIO $ getEnvCredPair storage
+	case v of
+		Just _ -> do
+			let (uenv, penv) = credPairEnvironment storage
+			ret $ "from environment variables (" ++ unwords [uenv, penv] ++ ")"
+		Nothing -> case (\ck -> M.lookup ck c) =<< credPairRemoteKey storage of
+			Nothing -> ifM (existsCacheCredPair storage)
+				( ret "stored locally"
+				, ret "not available"
+				)
+			Just _ -> case extractCipher c of
+				Just (EncryptedCipher _ _ _) -> ret "embedded in git repository (gpg encrypted)"
+				_ -> ret "embedded in git repository (not encrypted)"
+  where
+	ret s = return $ ("creds", s) : info

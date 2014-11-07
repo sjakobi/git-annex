@@ -125,7 +125,7 @@ getBuddyListR nid = do
 	waitNotifier getBuddyListBroadcaster nid
 
 	p <- widgetToPageContent buddyListDisplay
-	giveUrlRenderer $ [hamlet|^{pageBody p}|]
+	withUrlRenderer $ [hamlet|^{pageBody p}|]
 
 buddyListDisplay :: Widget
 buddyListDisplay = do
@@ -150,7 +150,7 @@ getXMPPRemotes :: Assistant [(JID, Remote)]
 getXMPPRemotes = catMaybes . map pair . filter Remote.isXMPPRemote . syncGitRemotes
 	<$> getDaemonStatus
   where
-  	pair r = maybe Nothing (\jid -> Just (jid, r)) $
+	pair r = maybe Nothing (\jid -> Just (jid, r)) $
 		parseJID $ getXMPPClientID r
 
 data XMPPForm = XMPPForm
@@ -197,8 +197,8 @@ testXMPP creds = do
 			}
 		_ -> return $ Left $ intercalate "; " $ map formatlog bad
   where
-  	formatlog ((h, p), Left e) = "host " ++ h ++ ":" ++ showport p ++ " failed: " ++ show e
-  	formatlog _ = ""
+	formatlog ((h, p), Left e) = "host " ++ h ++ ":" ++ showport p ++ " failed: " ++ show e
+	formatlog _ = ""
 
 	showport (PortNumber n) = show n
 	showport (Service s) = s

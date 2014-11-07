@@ -5,7 +5,7 @@
  - Licensed under the GNU GPL version 3 or higher.
  -}
 
-module Remote.S3 (remote, iaHost, isIA, isIAHost, iaItemUrl) where
+module Remote.S3 (remote, iaHost, configIA, iaItemUrl) where
 
 import Network.AWS.AWSConnection
 import Network.AWS.S3Object hiding (getStorageClass)
@@ -71,7 +71,13 @@ gen r u c gc = new <$> remoteCost gc expensiveRemoteCost
 			readonly = False,
 			availability = GloballyAvailable,
 			remotetype = remote,
-			mkUnavailable = gen r u (M.insert "host" "!dne!" c) gc
+			mkUnavailable = gen r u (M.insert "host" "!dne!" c) gc,
+			getInfo = includeCredsInfo c (AWS.creds u) $ catMaybes
+				[ Just ("bucket", fromMaybe "unknown" (getBucket c))
+				, if configIA c
+					then Just ("internet archive item", iaItemUrl $ fromMaybe "unknown" $ getBucket c)
+					else Nothing
+				]
 		}
 
 s3Setup :: Maybe UUID -> Maybe CredPair -> RemoteConfig -> Annex (RemoteConfig, UUID)
@@ -79,7 +85,7 @@ s3Setup mu mcreds c = do
 	u <- maybe (liftIO genUUID) return mu
 	s3Setup' u mcreds c
 s3Setup' :: UUID -> Maybe CredPair -> RemoteConfig -> Annex (RemoteConfig, UUID)
-s3Setup' u mcreds c = if isIA c then archiveorg else defaulthost
+s3Setup' u mcreds c = if configIA c then archiveorg else defaulthost
   where
 	remotename = fromJust (M.lookup "name" c)
 	defbucket = remotename ++ "-" ++ fromUUID u
@@ -104,19 +110,19 @@ s3Setup' u mcreds c = if isIA c then archiveorg else defaulthost
 
 	archiveorg = do
 		showNote "Internet Archive mode"
-		void $ setRemoteCredPair noEncryptionUsed c (AWS.creds u) mcreds
+		c' <- setRemoteCredPair noEncryptionUsed c (AWS.creds u) mcreds
 		-- Ensure user enters a valid bucket name, since
 		-- this determines the name of the archive.org item.
 		let bucket = replace " " "-" $ map toLower $
 			fromMaybe (error "specify bucket=") $
-				getBucket c
+				getBucket c'
 		let archiveconfig = 
 			-- hS3 does not pass through x-archive-* headers
 			M.mapKeys (replace "x-archive-" "x-amz-") $
 			-- encryption does not make sense here
 			M.insert "encryption" "none" $
 			M.insert "bucket" bucket $
-			M.union c $
+			M.union c' $
 			-- special constraints on key names
 			M.insert "mungekeys" "ia" $
 			-- bucket created only when files are uploaded
@@ -130,7 +136,7 @@ prepareStore r = resourcePrepare (const $ s3Action r False) $ \(conn, bucket) ->
 		ok <- s3Bool =<< liftIO (store (conn, bucket) r k p src)
 
 		-- Store public URL to item in Internet Archive.
-		when (ok && isIA (config r) && not (isChunkKey k)) $
+		when (ok && configIA (config r) && not (isChunkKey k)) $
 			setUrlPresent k (iaKeyUrl r k)
 
 		return ok
@@ -162,7 +168,7 @@ retrieveCheap _ _ = return False
  - derived from it that it does not remove. -}
 remove :: Remote -> RemoteConfig -> Remover
 remove r c k
-	| isIA c = do
+	| configIA c = do
 		warning "Cannot remove content from the Internet Archive"
 		return False
 	| otherwise = remove' r k
@@ -330,8 +336,8 @@ getXheaders = filter isxheader . M.assocs
 iaHost :: HostName
 iaHost = "s3.us.archive.org"
 
-isIA :: RemoteConfig -> Bool
-isIA c = maybe False isIAHost (M.lookup "host" c)
+configIA :: RemoteConfig -> Bool
+configIA c = maybe False isIAHost (M.lookup "host" c)
 
 isIAHost :: HostName -> Bool
 isIAHost h = ".archive.org" `isSuffixOf` map toLower h

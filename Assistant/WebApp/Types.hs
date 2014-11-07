@@ -7,7 +7,7 @@
 
 {-# LANGUAGE TypeFamilies, QuasiQuotes, MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, RankNTypes #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, ViewPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -78,7 +78,7 @@ instance Yesod WebApp where
 			addScript $ StaticR js_jquery_full_js
 			addScript $ StaticR js_bootstrap_js
 			$(widgetFile "error")
-		giveUrlRenderer $(hamletFile $ hamletTemplate "bootstrap")
+		withUrlRenderer $(hamletFile $ hamletTemplate "bootstrap")
 
 instance RenderMessage WebApp FormMessage where
 	renderMessage _ _ = defaultFormMessage

@@ -66,7 +66,9 @@ gen r u c gc = new <$> remoteCost gc veryExpensiveRemoteCost
 			readonly = False,
 			availability = GloballyAvailable,
 			remotetype = remote,
-			mkUnavailable = return Nothing
+			mkUnavailable = return Nothing,
+			getInfo = includeCredsInfo c (AWS.creds u) $
+				[ ("glacier vault", getVault c) ]
 		}
 	specialcfg = (specialRemoteCfg c)
 		-- Disabled until jobList gets support for chunks.
@@ -141,7 +143,10 @@ retrieve r k sink = go =<< glacierEnv c u
 		]
 	go Nothing = error "cannot retrieve from glacier"
 	go (Just e) = do
-		let cmd = (proc "glacier" (toCommand params)) { env = Just e }
+		let cmd = (proc "glacier" (toCommand params))
+			{ env = Just e
+			, std_out = CreatePipe
+			}
 		(_, Just h, _, pid) <- liftIO $ createProcess cmd
 		-- Glacier cannot store empty files, so if the output is
 		-- empty, the content is not available yet.

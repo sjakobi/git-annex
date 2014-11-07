@@ -68,6 +68,7 @@ gen r u c gc = do
 			remotetype = remote,
 			mkUnavailable = gen r u c $
 				gc { remoteAnnexExternalType = Just "!dne!" }
+			, getInfo = return [("externaltype", externaltype)]
 		}
   where
 	externaltype = fromMaybe (error "missing externaltype") (remoteAnnexExternalType gc)
@@ -169,7 +170,7 @@ handleRequest' lck external req mp responsehandler
 		go
 	| otherwise = go
   where
-  	go = do
+	go = do
 		sendMessage lck external req
 		loop
 	loop = receiveMessage lck external responsehandler
