@@ -13,6 +13,7 @@ module Locations (
 	annexDir,
 	objectDir,
 	gitAnnexLocation,
+	gitAnnexLocationDepth,
 	gitAnnexLink,
 	gitAnnexContentLock,
 	gitAnnexMapping,
@@ -117,6 +118,13 @@ annexLocation config key hasher = objectDir </>
 	keyPath' noobjectdir key (hasher $ objectHashLevels config)
   where
 	noobjectdir = hasDifference NoObjectDir (annexDifferences config)
+
+{- Number of subdirectories from the gitAnnexObjectDir
+ - to the gitAnnexLocation. -}
+gitAnnexLocationDepth :: GitConfig -> Int
+gitAnnexLocationDepth config = hashlevels + 1
+  where
+	HashLevels hashlevels = objectHashLevels config
 
 {- Annexed object's location in a repository.
  -
