@@ -16,7 +16,7 @@ in `.git/annex/objects`:
 
 It's very important to keep in mind that this makes a nonstandard format
 git-annex repository. In general, this cannot safely be used with
-git-annex older than version 5.20150128. Older version of git-annex will
+git-annex older than version 5.20150128. Older versions of git-annex will
 not understand and will get confused and perhaps do bad things.
 
 Also, it's not safe to merge two separate git repositories that have been
@@ -31,15 +31,26 @@ The following tuning parameters are available:
 
 * `annex.tune.objecthash1=true`  
   Use just one level of hash directories in `.git/annex/objects/`,
-  instead of the default two levels.
+  instead of the default two levels. This avoids some overhead in
+  both disk IO and data stored in git, at the expense of possibly
+  scaling less well with enrmous numbers of objects (in the 10-100 million
+  object range).
 
 * `annex.tune.objecthashlower=true`  
   Make the hash directories in `.git/annex/objects/` use
-  all lower-case, instead of the default mixed-case.
+  all lower-case, instead of the default mixed-case. There is no downside
+  to the change, except for backwards compatability.
 
 * `annex.tune.branchhash1=true`  
   Use just one level of hash directories in the git-annex branch,
-  instead of the default two levels.
+  instead of the default two levels. This avoids some overhead in
+  data stored in git.
+
+* `annex.tune.noobjectdir=true`  
+  Don't create a separate subdirectory for every object inside
+  the hash directories in `.git/annex/objects/. This avoids some overhead
+  in both disk IO and data stored in git. There is some increased potential
+  for contention between concurrent git-annex processes.
 
 Note that git-annex will automatically propagate these settings to
 `.git/config` for tuned repositories. You should never directly change

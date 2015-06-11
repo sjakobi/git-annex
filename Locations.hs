@@ -113,7 +113,10 @@ annexLocations :: GitConfig -> Key -> [FilePath]
 annexLocations config key = map (annexLocation config key) dirHashes
 
 annexLocation :: GitConfig -> Key -> (HashLevels -> Hasher) -> FilePath
-annexLocation config key hasher = objectDir </> keyPath key (hasher $ objectHashLevels config)
+annexLocation config key hasher = objectDir </>
+	keyPath' noobjectdir key (hasher $ objectHashLevels config)
+  where
+	noobjectdir = hasDifference NoObjectDir (annexDifferences config)
 
 {- Annexed object's location in a repository.
  -
@@ -441,8 +444,14 @@ prop_idempotent_fileKey s
  - write-protecting the directory to avoid accidental deletion of the file.
  -}
 keyPath :: Key -> Hasher -> FilePath
-keyPath key hasher = hasher key </> f </> f
+keyPath = keyPath' False
+
+keyPath' :: Bool -> Key -> Hasher -> FilePath
+keyPath' noobjectdir key hasher
+	| noobjectdir = h </> f
+	| otherwise = h </> f </> f
   where
+	h = hasher key
 	f = keyFile key
 
 {- All possibile locations to store a key in a special remote

@@ -44,6 +44,7 @@ data Difference
 	= ObjectHashLower
 	| OneLevelObjectHash
 	| OneLevelBranchHash
+	| NoObjectDir
 	deriving (Show, Read, Ord, Eq, Enum, Bounded)
 
 data Differences
@@ -74,6 +75,7 @@ differenceConfigKey :: Difference -> String
 differenceConfigKey ObjectHashLower = tunable "objecthashlower"
 differenceConfigKey OneLevelObjectHash = tunable "objecthash1"
 differenceConfigKey OneLevelBranchHash = tunable "branchhash1"
+differenceConfigKey NoObjectDir = tunable "noobjectdir"
 
 differenceConfigVal :: Difference -> String
 differenceConfigVal _ = Git.Config.boolConfig True
