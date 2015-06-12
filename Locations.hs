@@ -138,9 +138,9 @@ gitAnnexLocationDepth config = hashlevels + 1
  - the actual location of the file's content.
  -}
 gitAnnexLocation :: Key -> Git.Repo -> GitConfig -> IO FilePath
-gitAnnexLocation key r config = gitAnnexLocation' key r config (annexCrippledFileSystem config) doesFileExist (Git.localGitDir r)
+gitAnnexLocation key r config = gitAnnexLocation' key r config (annexCrippledFileSystem config) doesFileExist (Git.localGitDir r </> objectDir)
 gitAnnexLocation' :: Key -> Git.Repo -> GitConfig -> Bool -> (FilePath -> IO Bool) -> FilePath -> IO FilePath
-gitAnnexLocation' key r config crippled checker gitdir
+gitAnnexLocation' key r config crippled checker basedir
 	{- Bare repositories default to hashDirLower for new
 	 - content, as it's more portable.
 	 -
@@ -157,7 +157,7 @@ gitAnnexLocation' key r config crippled checker gitdir
 	 - present. -}
 	| otherwise = return $ inrepo $ annexLocation config key hashDirMixed
   where
-	inrepo d = gitdir </> objectDir </> d
+	inrepo d = basedir </> d
 	check locs@(l:_) = fromMaybe l <$> firstM checker locs
 	check [] = error "internal"
 
@@ -167,7 +167,7 @@ gitAnnexLink file key r config = do
 	currdir <- getCurrentDirectory
 	let absfile = fromMaybe whoops $ absNormPathUnix currdir file
 	let gitdir = getgitdir currdir
-	loc <- gitAnnexLocation' key r config False (\_ -> return True) gitdir
+	loc <- gitAnnexLocation' key r config False (\_ -> return True) (gitdir </> objectDir)
 	toInternalGitPath <$> relPathDirToFile (parentDir absfile) loc
   where
 	getgitdir currdir
