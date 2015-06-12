@@ -325,7 +325,7 @@ inAnnex rmt key
 keyUrls :: Remote -> Key -> [String]
 keyUrls r key = map tourl locs'
   where
-	tourl l = Git.repoLocation (repo r) ++ "/" ++ l
+	tourl l = Git.repoLocation (repo r) ++ "/" ++ objectDir ++ l
 	-- If the remote is known to not be bare, try the hash locations
 	-- used for non-bare repos first, as an optimisation.
 	locs

@@ -105,7 +105,7 @@ annexDir = addTrailingPathSeparator "annex"
 objectDir :: FilePath
 objectDir = addTrailingPathSeparator $ annexDir </> "objects"
 
-{- Annexed file's possible locations relative to the .git directory.
+{- Annexed file's possible locations relative to the objectDir.
  - There are two different possibilities, using different hashes.
  -
  - Also, some repositories have a Difference in hash directory depth.
@@ -114,7 +114,7 @@ annexLocations :: GitConfig -> Key -> [FilePath]
 annexLocations config key = map (annexLocation config key) dirHashes
 
 annexLocation :: GitConfig -> Key -> (HashLevels -> Hasher) -> FilePath
-annexLocation config key hasher = objectDir </>
+annexLocation config key hasher =
 	keyPath' noobjectdir key (hasher $ objectHashLevels config)
   where
 	noobjectdir = hasDifference NoObjectDir (annexDifferences config)
@@ -157,7 +157,7 @@ gitAnnexLocation' key r config crippled checker gitdir
 	 - present. -}
 	| otherwise = return $ inrepo $ annexLocation config key hashDirMixed
   where
-	inrepo d = gitdir </> d
+	inrepo d = gitdir </> objectDir </> d
 	check locs@(l:_) = fromMaybe l <$> firstM checker locs
 	check [] = error "internal"
 
